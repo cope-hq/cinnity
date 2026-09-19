@@ -1,0 +1,19 @@
+{
+  "name": "cinny-embed-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test",
+    "check": "node --check src/main.js && node --check src/server.js && node --check src/network.js && node --check src/metadata.js && node --check src/media.js && node --check src/limits.js && node --check preview-client.js && node --check src/parse.js && node --check src/parse-worker.js"
+  },
+  "dependencies": {
+    "ipaddr.js": "2.5.0",
+    "parse5": "8.0.1"
+  }
+}
