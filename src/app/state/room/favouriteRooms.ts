@@ -24,6 +24,9 @@ export const favouriteRoomsAtom = atom<Set<string>, [FavouriteRoomsAction], unde
     }
 
     set(baseFavouriteRoomsAtom, (current) => {
+      // Keep the same Set when nothing changed so subscribers don't re-render
+      // on every room/tag/membership event.
+      if (current.has(action.roomId) === (action.type === 'PUT')) return current;
       const next = new Set(current);
       if (action.type === 'PUT') next.add(action.roomId);
       else next.delete(action.roomId);

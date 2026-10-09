@@ -22,6 +22,15 @@ const getUserPresence = (user: User): UserPresence => ({
   lastActiveTs: user.getLastActiveTs(),
 });
 
+// `lastActiveTs` shifts on every presence sync, so only treat it as a change
+// when it becomes known/unknown; otherwise the consumer re-renders constantly.
+const samePresence = (a: UserPresence | undefined, b: UserPresence): boolean =>
+  !!a &&
+  a.presence === b.presence &&
+  a.status === b.status &&
+  a.active === b.active &&
+  !a.lastActiveTs === !b.lastActiveTs;
+
 export const useUserPresence = (userId: string): UserPresence | undefined => {
   const mx = useMatrixClient();
   const user = mx.getUser(userId);
@@ -31,7 +40,8 @@ export const useUserPresence = (userId: string): UserPresence | undefined => {
   useEffect(() => {
     const updatePresence: UserEventHandlerMap[UserEvent.Presence] = (event, u) => {
       if (u.userId === user?.userId) {
-        setPresence(getUserPresence(user));
+        const next = getUserPresence(user);
+        setPresence((current) => (samePresence(current, next) ? current : next));
       }
     };
     user?.on(UserEvent.Presence, updatePresence);
