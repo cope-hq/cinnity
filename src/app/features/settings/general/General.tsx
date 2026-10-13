@@ -60,7 +60,16 @@ type ThemeSelectorProps = {
 const ThemeSelector = as<'div', ThemeSelectorProps>(
   ({ themeNames, themes, selected, onSelect, ...props }, ref) => (
     <Menu {...props} ref={ref}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+      <Box
+        direction="Column"
+        gap="100"
+        style={{
+          padding: config.space.S100,
+          // The theme list is long; keep the menu within the viewport.
+          maxHeight: '60vh',
+          overflowY: 'auto',
+        }}
+      >
         {themes.map((theme) => (
           <MenuItem
             key={theme.id}
