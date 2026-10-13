@@ -439,8 +439,10 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
 
   const openSettings = useOpenRoomSettings();
   const parentSpace = useSpaceOptionally();
+  // The members drawer only exists on desktop; elsewhere open the members page.
+  const membersAsPage = callView || screenSize !== ScreenSize.Desktop;
   const handleMemberToggle = () => {
-    if (callView) {
+    if (membersAsPage) {
       openSettings(room.roomId, parentSpace?.roomId, RoomSettingsPage.MembersPage);
       return;
     }
@@ -599,27 +601,25 @@ export function RoomViewHeader({ callView }: { callView?: boolean }) {
           {!room.isCallRoom() && livekitSupported && rtcSupported && hasCallPermission && (
             <CallButton />
           )}
-          {screenSize === ScreenSize.Desktop && (
-            <TooltipProvider
-              position="Bottom"
-              offset={4}
-              tooltip={
-                <Tooltip>
-                  {callView ? (
-                    <Text>Members</Text>
-                  ) : (
-                    <Text>{peopleDrawer ? 'Hide Members' : 'Show Members'}</Text>
-                  )}
-                </Tooltip>
-              }
-            >
-              {(triggerRef) => (
-                <IconButton fill="None" ref={triggerRef} onClick={handleMemberToggle}>
-                  <Icon size="400" src={Icons.User} />
-                </IconButton>
-              )}
-            </TooltipProvider>
-          )}
+          <TooltipProvider
+            position="Bottom"
+            offset={4}
+            tooltip={
+              <Tooltip>
+                {membersAsPage ? (
+                  <Text>Members</Text>
+                ) : (
+                  <Text>{peopleDrawer ? 'Hide Members' : 'Show Members'}</Text>
+                )}
+              </Tooltip>
+            }
+          >
+            {(triggerRef) => (
+              <IconButton fill="None" ref={triggerRef} onClick={handleMemberToggle}>
+                <Icon size="400" src={Icons.User} />
+              </IconButton>
+            )}
+          </TooltipProvider>
 
           <TooltipProvider
             position="Bottom"

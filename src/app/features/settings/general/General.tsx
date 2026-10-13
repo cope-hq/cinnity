@@ -296,7 +296,8 @@ function PageZoomInput() {
 
   return (
     <Input
-      style={{ width: toRem(100) }}
+      // folds' Input wraps its children; keep the "%" next to the number.
+      style={{ width: toRem(100), flexWrap: 'nowrap' }}
       variant={pageZoom === parseInt(currentZoom, 10) ? 'Secondary' : 'Success'}
       size="300"
       radii="300"

@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/main.js",
     "test": "node --test",
-    "check": "node --check src/main.js && node --check src/server.js && node --check src/network.js && node --check src/metadata.js && node --check src/media.js && node --check src/limits.js && node --check preview-client.js && node --check src/parse.js && node --check src/parse-worker.js"
+    "check": "node --check src/main.js && node --check src/server.js && node --check src/network.js && node --check src/metadata.js && node --check src/media.js && node --check src/limits.js && node --check preview-client.js && node --check src/parse.js && node --check src/parse-worker.js && node --check src/push/main.js && node --check src/push/server.js && node --check src/push/webpush.js && node --check src/push/vapid.js && node --check src/push/endpoint.js && node --check src/push/payload.js"
   },
   "dependencies": {
     "ipaddr.js": "2.5.0",

@@ -9,6 +9,10 @@ const getClientConfig = async (): Promise<ClientConfig> => {
   return config.json();
 };
 
+// Stable fallback so consumers memoizing on the config don't see a new object
+// every render.
+const EMPTY_CONFIG: ClientConfig = {};
+
 type ClientConfigLoaderProps = {
   fallback?: () => ReactNode;
   error?: (err: unknown, retry: () => void, ignore: () => void) => ReactNode;
@@ -32,7 +36,7 @@ export function ClientConfigLoader({ fallback, error, children }: ClientConfigLo
     return error?.(state.error, load, ignoreCallback);
   }
 
-  const config: ClientConfig = state.status === AsyncStatus.Success ? state.data : {};
+  const config: ClientConfig = state.status === AsyncStatus.Success ? state.data : EMPTY_CONFIG;
 
   return children(config);
 }

@@ -8,6 +8,7 @@ import {
   getSpacePath,
 } from '../pages/pathUtils';
 import { DIRECT_PATH, EXPLORE_PATH, HOME_PATH, INBOX_PATH, SPACE_PATH } from '../pages/paths';
+import { isPreviousPathname } from '../utils/locationHistory';
 
 type BackRouteHandlerProps = {
   children: (onBack: () => void) => ReactNode;
@@ -15,6 +16,16 @@ type BackRouteHandlerProps = {
 export function BackRouteHandler({ children }: BackRouteHandlerProps) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Pop the history entry when it is the list we're going back to, so the
+  // system back button doesn't bounce between the room and the list.
+  const navigateBack = useCallback(
+    (path: string) => {
+      if (isPreviousPathname(path)) navigate(-1);
+      else navigate(path, { replace: true });
+    },
+    [navigate]
+  );
 
   const goBack = useCallback(() => {
     if (
@@ -27,7 +38,7 @@ export function BackRouteHandler({ children }: BackRouteHandlerProps) {
         location.pathname
       )
     ) {
-      navigate(getHomePath());
+      navigateBack(getHomePath());
       return;
     }
     if (
@@ -40,7 +51,7 @@ export function BackRouteHandler({ children }: BackRouteHandlerProps) {
         location.pathname
       )
     ) {
-      navigate(getDirectPath());
+      navigateBack(getDirectPath());
       return;
     }
     const spaceMatch = matchPath(
@@ -56,7 +67,7 @@ export function BackRouteHandler({ children }: BackRouteHandlerProps) {
       encodedSpaceIdOrAlias && decodeURIComponent(encodedSpaceIdOrAlias);
 
     if (decodedSpaceIdOrAlias) {
-      navigate(getSpacePath(decodedSpaceIdOrAlias));
+      navigateBack(getSpacePath(decodedSpaceIdOrAlias));
       return;
     }
     if (
@@ -69,7 +80,7 @@ export function BackRouteHandler({ children }: BackRouteHandlerProps) {
         location.pathname
       )
     ) {
-      navigate(getExplorePath());
+      navigateBack(getExplorePath());
       return;
     }
     if (
@@ -82,9 +93,9 @@ export function BackRouteHandler({ children }: BackRouteHandlerProps) {
         location.pathname
       )
     ) {
-      navigate(getInboxPath());
+      navigateBack(getInboxPath());
     }
-  }, [navigate, location]);
+  }, [navigateBack, location]);
 
   return children(goBack);
 }

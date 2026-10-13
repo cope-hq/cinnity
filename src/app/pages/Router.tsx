@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import {
   Outlet,
   Route,
@@ -52,7 +52,7 @@ import { Lobby } from '../features/lobby';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
 import { PageRoot } from '../components/page';
-import { ScreenSize } from '../hooks/useScreenSize';
+import { getScreenSize, ScreenSize, useScreenSizeContext } from '../hooks/useScreenSize';
 import { MobileFriendlyPageNav, MobileFriendlyClientNav } from './MobileFriendly';
 import { ClientInitStorageAtom } from './client/ClientInitStorageAtom';
 import { ClientNonUIFeatures } from './client/ClientNonUIFeatures';
@@ -72,9 +72,19 @@ import { getFallbackSession } from '../state/sessions';
 import { CallStatusRenderer } from './CallStatusRenderer';
 import { CallEmbedProvider } from '../components/CallEmbedProvider';
 
-export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize) => {
+// Read the width at navigation time instead of baking the screen size into the
+// route tree: recreating the router remounts the whole client (and restarts
+// the Matrix client) whenever the window crosses a breakpoint.
+const isMobileNow = () => getScreenSize(document.body.clientWidth) === ScreenSize.Mobile;
+
+function DesktopOnly({ children }: { children: ReactNode }) {
+  const screenSize = useScreenSizeContext();
+  // eslint-disable-next-line react/jsx-no-useless-fragment
+  return screenSize === ScreenSize.Mobile ? null : <>{children}</>;
+}
+
+export const createRouter = (clientConfig: ClientConfig) => {
   const { hashRouter } = clientConfig;
-  const mobile = screenSize === ScreenSize.Mobile;
 
   const routes = createRoutesFromElements(
     <Route>
@@ -169,7 +179,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             </PageRoot>
           }
         >
-          {mobile ? null : <Route index element={<WelcomePage />} />}
+          <Route
+            index
+            element={
+              <DesktopOnly>
+                <WelcomePage />
+              </DesktopOnly>
+            }
+          />
           <Route path={_CREATE_PATH} element={<HomeCreateRoom />} />
           <Route path={_JOIN_PATH} element={<p>join</p>} />
           <Route path={_SEARCH_PATH} element={<HomeSearch />} />
@@ -196,7 +213,14 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             </PageRoot>
           }
         >
-          {mobile ? null : <Route index element={<WelcomePage />} />}
+          <Route
+            index
+            element={
+              <DesktopOnly>
+                <WelcomePage />
+              </DesktopOnly>
+            }
+          />
           <Route path={_CREATE_PATH} element={<DirectCreate />} />
           <Route
             path={_ROOM_PATH}
@@ -223,19 +247,21 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             </RouteSpaceProvider>
           }
         >
-          {mobile ? null : (
-            <Route
-              index
-              loader={({ params }) => {
-                const { spaceIdOrAlias } = params;
-                if (spaceIdOrAlias) {
-                  return redirect(getSpaceLobbyPath(spaceIdOrAlias));
-                }
-                return null;
-              }}
-              element={<WelcomePage />}
-            />
-          )}
+          <Route
+            index
+            loader={({ params }) => {
+              const { spaceIdOrAlias } = params;
+              if (spaceIdOrAlias && !isMobileNow()) {
+                return redirect(getSpaceLobbyPath(spaceIdOrAlias));
+              }
+              return null;
+            }}
+            element={
+              <DesktopOnly>
+                <WelcomePage />
+              </DesktopOnly>
+            }
+          />
           <Route path={_LOBBY_PATH} element={<Lobby />} />
           <Route path={_SEARCH_PATH} element={<SpaceSearch />} />
           <Route
@@ -261,13 +287,15 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             </PageRoot>
           }
         >
-          {mobile ? null : (
-            <Route
-              index
-              loader={() => redirect(getExploreFeaturedPath())}
-              element={<WelcomePage />}
-            />
-          )}
+          <Route
+            index
+            loader={() => (isMobileNow() ? null : redirect(getExploreFeaturedPath()))}
+            element={
+              <DesktopOnly>
+                <WelcomePage />
+              </DesktopOnly>
+            }
+          />
           <Route path={_FEATURED_PATH} element={<FeaturedRooms />} />
           <Route path={_SERVER_PATH} element={<PublicRooms />} />
         </Route>
@@ -286,13 +314,15 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
             </PageRoot>
           }
         >
-          {mobile ? null : (
-            <Route
-              index
-              loader={() => redirect(getInboxNotificationsPath())}
-              element={<WelcomePage />}
-            />
-          )}
+          <Route
+            index
+            loader={() => (isMobileNow() ? null : redirect(getInboxNotificationsPath()))}
+            element={
+              <DesktopOnly>
+                <WelcomePage />
+              </DesktopOnly>
+            }
+          />
           <Route path={_NOTIFICATIONS_PATH} element={<Notifications />} />
           <Route path={_MENTIONS_PATH} element={<Notifications mentionsOnly />} />
           <Route path={_INVITES_PATH} element={<Invites />} />

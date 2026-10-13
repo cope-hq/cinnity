@@ -25,6 +25,8 @@ export const ImageViewerContent = style([
     backgroundColor: color.Background.Container,
     color: color.Background.OnContainer,
     overflow: 'hidden',
+    // Pinch/pan are handled by useTouchZoom, not the browser.
+    touchAction: 'none',
   },
 ]);
 

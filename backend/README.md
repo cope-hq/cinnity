@@ -108,3 +108,31 @@ cd backend
 npm test
 npm run check
 ```
+
+# Optional Web Push gateway
+
+`src/push/` is a separate process (`cinny-push`, enabled with `enablePush = true`) that implements the Matrix push gateway API for browser Web Push subscriptions. It has no npm dependencies: message encryption (RFC 8291, aes128gcm) and VAPID (RFC 8292) use `node:crypto`.
+
+## Run
+
+```sh
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out vapid.pem
+ORIGIN=https://chat.example.org PORT=8788 VAPID_KEY_FILE=vapid.pem node src/push/main.js
+```
+
+Without `VAPID_KEY_FILE`, the key is read from `$CREDENTIALS_DIRECTORY/vapid.pem` (systemd `LoadCredential`). Keep the key stable: replacing it invalidates every browser subscription.
+
+## Routes
+
+- `GET /_cinny/push/vapid` returns `{ publicKey, notifyUrl, appId }` for the frontend.
+- `POST /_matrix/push/v1/notify` is the push gateway endpoint the homeserver calls. Requests with an `Origin` header are refused. Pushers use `kind: "http"`, `app_id: "cinny.web"`, `pushkey` = the subscription's `p256dh` key and `data = { url, endpoint, auth }`.
+
+## Behaviour
+
+- Endpoints must be HTTPS on a known browser push service (FCM, Mozilla, Apple, WNS); anything else is rejected, so the gateway can't be pointed at arbitrary hosts.
+- The payload sent to the browser contains room/sender names and, for unencrypted text messages, the body (trimmed to fit one 4 KiB record). Encrypted events never include content.
+- Badge-only notifications (no `event_id`) are acknowledged but not forwarded; Safari revokes subscriptions that receive pushes without a visible notification.
+- Pushkeys are returned in `rejected` only for wrong app ids, invalid subscriptions, or a 404/410 from the push service. Transient failures are not rejected.
+- No request or error logging: notifications carry message content.
+
+The homeserver must be able to reach `notifyUrl`. Restrict that path to the homeserver's addresses at the reverse proxy, otherwise anyone can use the gateway to send pushes signed with your VAPID key.

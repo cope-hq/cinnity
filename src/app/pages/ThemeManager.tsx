@@ -11,6 +11,17 @@ import {
 import { useSetting } from '../state/hooks/settings';
 import { settingsAtom } from '../state/settings';
 
+/**
+ * Match the browser/OS chrome (Android status bar, installed app title bar) to
+ * the theme. The body background is the theme's background color (see
+ * styles/global.css.ts), so read it back once the theme classes are applied.
+ */
+const syncThemeColorMeta = () => {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  const background = getComputedStyle(document.body).backgroundColor;
+  if (meta && background) meta.content = background;
+};
+
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
 
@@ -23,6 +34,7 @@ export function UnAuthRouteThemeManager() {
     if (systemThemeKind === ThemeKind.Light) {
       document.body.classList.add(...LightTheme.classNames);
     }
+    syncThemeColorMeta();
   }, [systemThemeKind]);
 
   return null;
@@ -37,6 +49,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     document.body.classList.add(configClass, varsClass);
 
     document.body.classList.add(...activeTheme.classNames);
+    syncThemeColorMeta();
 
     if (monochromeMode) {
       document.body.style.filter = 'grayscale(1)';

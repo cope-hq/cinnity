@@ -39,6 +39,7 @@ buildNpmPackage {
     cp -r src package.json node_modules "$out/"
     test -s "$out/src/main.js"
     test -s "$out/src/parse-worker.js"
+    test -s "$out/src/push/main.js"
 
     runHook postInstall
   '';

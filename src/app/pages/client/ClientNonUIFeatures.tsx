@@ -1,4 +1,4 @@
-import { useAtomValue } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RoomEvent, RoomEventHandlerMap } from 'matrix-js-sdk';
@@ -26,6 +26,16 @@ import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 import { useSelectedRoom } from '../../hooks/router/useSelectedRoom';
 import { useInboxNotificationsSelected } from '../../hooks/router/useInbox';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
+import { useRoomNavigate } from '../../hooks/useRoomNavigate';
+import { webPushActiveAtom } from '../../state/webPush';
+import { fetchPushGatewayInfo, pushGatewayEnabled } from '../../utils/pushGateway';
+import { getWebPushRecord, syncWebPush, webPushSupported } from '../../utils/webPush';
+import { useRecordLocationHistory } from '../../utils/locationHistory';
+import {
+  PUSH_SUBSCRIPTION_CHANGED_EVENT,
+  subscribeOpenRoom,
+  takeOpenRoomRequest,
+} from '../../utils/pushNavigation';
 
 function SystemEmojiFeature() {
   const [twitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
@@ -85,6 +95,7 @@ function InviteNotifications() {
   const navigate = useNavigate();
   const [showNotifications] = useSetting(settingsAtom, 'showNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+  const webPushActive = useAtomValue(webPushActiveAtom);
 
   const notify = useCallback(
     (count: number) => {
@@ -110,7 +121,8 @@ function InviteNotifications() {
 
   useEffect(() => {
     if (invites.length > perviousInviteLen && mx.getSyncState() === 'SYNCING') {
-      if (showNotifications && notificationPermission('granted')) {
+      // With Web Push on, the service worker shows the notification instead.
+      if (showNotifications && !webPushActive && notificationPermission('granted')) {
         notify(invites.length - perviousInviteLen);
       }
 
@@ -118,7 +130,16 @@ function InviteNotifications() {
         playSound();
       }
     }
-  }, [mx, invites, perviousInviteLen, showNotifications, notificationSound, notify, playSound]);
+  }, [
+    mx,
+    invites,
+    perviousInviteLen,
+    showNotifications,
+    webPushActive,
+    notificationSound,
+    notify,
+    playSound,
+  ]);
 
   return (
     // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -136,6 +157,8 @@ function MessageNotifications() {
   const useAuthentication = useMediaAuthentication();
   const [showNotifications] = useSetting(settingsAtom, 'showNotifications');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
+
+  const webPushActive = useAtomValue(webPushActiveAtom);
 
   const navigate = useNavigate();
   const notificationSelected = useInboxNotificationsSelected();
@@ -212,7 +235,8 @@ function MessageNotifications() {
         return;
       }
 
-      if (showNotifications && notificationPermission('granted')) {
+      // With Web Push on, the service worker shows the notification instead.
+      if (showNotifications && !webPushActive && notificationPermission('granted')) {
         const avatarMxc =
           room.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? room.getMxcAvatarUrl();
         notify({
@@ -239,6 +263,7 @@ function MessageNotifications() {
     notificationSound,
     notificationSelected,
     showNotifications,
+    webPushActive,
     playSound,
     notify,
     selectedRoomId,
@@ -253,6 +278,78 @@ function MessageNotifications() {
   );
 }
 
+function LocationHistoryRecorder() {
+  useRecordLocationHistory();
+  return null;
+}
+
+function WebPushSync() {
+  const mx = useMatrixClient();
+  const setWebPushActive = useSetAtom(webPushActiveAtom);
+
+  useEffect(() => {
+    if (!pushGatewayEnabled || !webPushSupported()) return undefined;
+    let cancelled = false;
+    const sync = async () => {
+      setWebPushActive(!!getWebPushRecord(mx.getSafeUserId()));
+      const info = await fetchPushGatewayInfo();
+      if (!info) return;
+      const record = await syncWebPush(mx, info).catch(() => getWebPushRecord(mx.getSafeUserId()));
+      if (!cancelled) setWebPushActive(!!record);
+    };
+    sync();
+    window.addEventListener(PUSH_SUBSCRIPTION_CHANGED_EVENT, sync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PUSH_SUBSCRIPTION_CHANGED_EVENT, sync);
+    };
+  }, [mx, setWebPushActive]);
+
+  return null;
+}
+
+function PushOpenRoomHandler() {
+  const { navigateRoom } = useRoomNavigate();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const open = () => {
+      const request = takeOpenRoomRequest();
+      if (!request) return;
+      if (request.invite) navigate(getInboxInvitesPath());
+      else navigateRoom(request.roomId, request.eventId);
+    };
+    open();
+    return subscribeOpenRoom(open);
+  }, [navigate, navigateRoom]);
+
+  return null;
+}
+
+/** Close push notifications for rooms that have been read (on any device). */
+function PushNotificationDismisser() {
+  const webPushActive = useAtomValue(webPushActiveAtom);
+  const roomToUnread = useAtomValue(roomToUnreadAtom);
+
+  useEffect(() => {
+    if (!webPushActive || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker
+      .getRegistration()
+      .then((registration) => registration?.getNotifications())
+      .then((notifications) =>
+        notifications?.forEach((notification) => {
+          const { roomId, kind } = notification.data ?? {};
+          if (typeof roomId === 'string' && kind !== 'invite' && !roomToUnread.has(roomId)) {
+            notification.close();
+          }
+        })
+      )
+      .catch(() => undefined);
+  }, [webPushActive, roomToUnread]);
+
+  return null;
+}
+
 type ClientNonUIFeaturesProps = {
   children: ReactNode;
 };
@@ -265,6 +362,10 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <FaviconUpdater />
       <InviteNotifications />
       <MessageNotifications />
+      <LocationHistoryRecorder />
+      <WebPushSync />
+      <PushOpenRoomHandler />
+      <PushNotificationDismisser />
       {children}
     </>
   );

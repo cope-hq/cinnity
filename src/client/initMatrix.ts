@@ -1,8 +1,10 @@
 import { createClient, MatrixClient, IndexedDBStore, IndexedDBCryptoStore } from 'matrix-js-sdk';
+import './sdkLogger';
 
 import { cryptoCallbacks } from './secretStorageKeys';
 import { clearNavToActivePathStore } from '../app/state/navToActivePath';
 import { pushSessionToSW } from '../sw-session';
+import { disableWebPush } from '../app/utils/webPush';
 
 type Session = {
   baseUrl: string;
@@ -55,6 +57,14 @@ export const clearCacheAndReload = async (mx: MatrixClient) => {
 
 export const logoutClient = async (mx: MatrixClient) => {
   pushSessionToSW();
+  // Remove this device's push pusher/subscription while still authenticated
+  // and before localStorage (which holds the record) is cleared.
+  await Promise.race([
+    disableWebPush(mx).catch(() => undefined),
+    new Promise((resolve) => {
+      setTimeout(resolve, 2000);
+    }),
+  ]);
   mx.stopClient();
   try {
     await mx.logout();

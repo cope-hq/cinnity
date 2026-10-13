@@ -710,6 +710,23 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
     useCallback(() => roomInputRef.current, [roomInputRef])
   );
 
+  // Stay at bottom when the timeline itself shrinks, e.g. the on-screen
+  // keyboard opening on mobile.
+  useResizeObserver(
+    useMemo(() => {
+      let mounted = false;
+      return () => {
+        if (!mounted) {
+          mounted = true;
+          return;
+        }
+        const scrollElement = getScrollElement();
+        if (scrollElement && atBottomRef.current) scrollToBottom(scrollElement);
+      };
+    }, [getScrollElement]),
+    getScrollElement
+  );
+
   const tryAutoMarkAsRead = useCallback(() => {
     const readUptoEventId = readUptoEventIdRef.current;
     if (!readUptoEventId) {
@@ -1746,7 +1763,7 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
           </Chip>
         </TimelineFloat>
       )}
-      <Scroll ref={scrollRef} visibility="Hover">
+      <Scroll ref={scrollRef} visibility="Hover" style={{ overscrollBehavior: 'contain' }}>
         <Box
           direction="Column"
           justifyContent="End"

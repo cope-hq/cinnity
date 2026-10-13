@@ -9,6 +9,7 @@ import { configClass, varsClass } from 'folds';
 enableMapSet();
 
 import './index.css';
+import './app/styles/global.css';
 
 import { trimTrailingSlash } from './app/utils/common';
 import App from './app/pages/App';
@@ -17,6 +18,11 @@ import App from './app/pages/App';
 import './app/i18n';
 import { pushSessionToSW } from './sw-session';
 import { getFallbackSession } from './app/state/sessions';
+import {
+  consumeOpenRoomFromUrl,
+  PUSH_SUBSCRIPTION_CHANGED_EVENT,
+  requestOpenRoom,
+} from './app/utils/pushNavigation';
 
 document.body.classList.add(configClass, varsClass);
 
@@ -41,8 +47,21 @@ if ('serviceWorker' in navigator) {
     if (type === 'requestSession') {
       sendSessionToSW();
     }
+    if (type === 'openRoom' && typeof ev.data.roomId === 'string') {
+      requestOpenRoom({
+        roomId: ev.data.roomId,
+        eventId: typeof ev.data.eventId === 'string' ? ev.data.eventId : undefined,
+        invite: ev.data.kind === 'invite',
+      });
+    }
+    if (type === 'pushSubscriptionChanged') {
+      window.dispatchEvent(new Event(PUSH_SUBSCRIPTION_CHANGED_EVENT));
+    }
   });
 }
+
+// A push notification click that had to open a new window.
+consumeOpenRoomFromUrl();
 
 const mountApp = () => {
   const rootContainer = document.getElementById('root');

@@ -156,3 +156,169 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     })
   );
 });
+
+/**
+ * Web Push (see backend/src/push). Payload shape produced by the gateway.
+ */
+type PushPayload = {
+  v: 1;
+  kind: 'message' | 'encrypted' | 'invite' | 'other';
+  room_id: string;
+  event_id: string;
+  sender?: string;
+  sender_name?: string;
+  room_name?: string;
+  body?: string;
+  msgtype?: string;
+  unread?: number;
+};
+
+export type PushNotificationData = {
+  roomId: string;
+  eventId: string;
+  kind: PushPayload['kind'];
+};
+
+const MEDIA_LABELS: Record<string, string> = {
+  'm.image': 'sent an image',
+  'm.video': 'sent a video',
+  'm.audio': 'sent an audio message',
+  'm.file': 'sent a file',
+  'm.sticker': 'sent a sticker',
+  'm.location': 'shared a location',
+};
+
+const assetUrl = (path: string) => new URL(path, self.registration.scope).href;
+
+const parsePushPayload = (event: PushEvent): PushPayload | undefined => {
+  try {
+    const data = event.data?.json();
+    if (
+      data?.v === 1 &&
+      typeof data.room_id === 'string' &&
+      typeof data.event_id === 'string' &&
+      typeof data.kind === 'string'
+    )
+      return data as PushPayload;
+  } catch {
+    // Not JSON; ignore.
+  }
+  return undefined;
+};
+
+const localpart = (userId?: string) => userId?.match(/^@([^:]+)/)?.[1];
+
+const renderPush = (p: PushPayload): { title: string; body: string } => {
+  const sender = p.sender_name ?? localpart(p.sender) ?? 'Someone';
+  if (p.kind === 'invite') {
+    return { title: 'Invitation', body: `${sender} invited you to ${p.room_name ?? 'a room'}` };
+  }
+
+  const title = p.room_name ?? sender;
+  // In a DM the title already names the sender.
+  const prefix = title === sender ? '' : `${sender}: `;
+  if (p.kind === 'encrypted') return { title, body: `${prefix}Encrypted message` };
+  if (p.body) {
+    return { title, body: p.msgtype === 'm.emote' ? `* ${sender} ${p.body}` : prefix + p.body };
+  }
+  const media = p.msgtype && MEDIA_LABELS[p.msgtype];
+  if (media) return { title, body: `${sender} ${media}` };
+  return { title, body: `${prefix}New message` };
+};
+
+const hasFocusedClient = async (): Promise<boolean> => {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  return windows.some((c) => c.focused && c.visibilityState === 'visible');
+};
+
+self.addEventListener('push', (event: PushEvent) => {
+  const payload = parsePushPayload(event);
+  if (!payload) return;
+
+  event.waitUntil(
+    (async () => {
+      const { title, body } = renderPush(payload);
+      const tag = `room:${payload.room_id}`;
+      const data: PushNotificationData = {
+        roomId: payload.room_id,
+        eventId: payload.event_id,
+        kind: payload.kind,
+      };
+      await self.registration.showNotification(title, {
+        body,
+        tag,
+        // `renotify` isn't in the TS lib yet but is supported by Chromium.
+        ...({ renotify: true } as NotificationOptions),
+        icon: assetUrl('public/android/android-chrome-192x192.png'),
+        badge: assetUrl('public/android/badge-96x96.png'),
+        data,
+      });
+
+      // The open app already shows this; but browsers (Safari in particular)
+      // revoke subscriptions whose pushes don't display a notification, so
+      // show it and close it right away instead of skipping it.
+      if (await hasFocusedClient()) {
+        const shown = await self.registration.getNotifications({ tag });
+        shown.forEach((n) => n.close());
+      }
+    })()
+  );
+});
+
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close();
+  const data = event.notification.data as PushNotificationData | undefined;
+  if (!data?.roomId) return;
+
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const target = windows.find((c) => c.url.startsWith(self.registration.scope)) ?? windows[0];
+      if (target) {
+        const focused = await target.focus().catch(() => target);
+        focused.postMessage({ type: 'openRoom', ...data });
+        return;
+      }
+      // A document-level query works with both the browser and hash router.
+      const url = new URL(self.registration.scope);
+      url.searchParams.set('openRoom', data.roomId);
+      url.searchParams.set('openEvent', data.eventId);
+      if (data.kind === 'invite') url.searchParams.set('openKind', 'invite');
+      await self.clients.openWindow(url.href);
+    })()
+  );
+});
+
+/**
+ * Browsers may rotate the subscription. Resubscribe with the same VAPID key;
+ * the app re-registers the pusher with the new keys on its next start (the
+ * gateway rejects the stale pusher once the old subscription returns 410).
+ */
+type PushSubscriptionChangeEvent = ExtendableEvent & {
+  oldSubscription?: PushSubscription | null;
+  newSubscription?: PushSubscription | null;
+};
+self.addEventListener('pushsubscriptionchange', ((event: PushSubscriptionChangeEvent) => {
+  event.waitUntil(
+    (async () => {
+      if (!event.newSubscription) {
+        let applicationServerKey = event.oldSubscription?.options.applicationServerKey;
+        if (!applicationServerKey) {
+          const info = await fetch(new URL('/_cinny/push/vapid', self.registration.scope), {
+            cache: 'no-store',
+          })
+            .then((r) => (r.ok ? r.json() : undefined))
+            .catch(() => undefined);
+          if (typeof info?.publicKey === 'string') applicationServerKey = info.publicKey;
+        }
+        if (applicationServerKey) {
+          await self.registration.pushManager
+            .subscribe({ userVisibleOnly: true, applicationServerKey })
+            .catch(() => undefined);
+        }
+      }
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      windows.forEach((c) => c.postMessage({ type: 'pushSubscriptionChanged' }));
+    })()
+  );
+}) as EventListener);

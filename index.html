@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <!--
+      viewport-fit=cover: draw under notches/home bar; the app pads with
+      env(safe-area-inset-*). resizes-content: on Android the on-screen
+      keyboard shrinks the layout instead of scrolling the page.
+      maximum-scale=1 stops iOS zooming in when focusing small inputs.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>Cinny</title>
     <meta name="name" content="Cinny" />
     <meta name="author" content="Ajay Bura" />

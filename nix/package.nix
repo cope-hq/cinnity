@@ -9,6 +9,7 @@
   jq,
   writeText,
   enableEmbeds ? false,
+  enablePush ? false,
   conf ? { },
 }:
 
@@ -17,6 +18,7 @@ let
   configOverrides = writeText "cinny-config-overrides.json" (builtins.toJSON conf);
 in
 assert builtins.isBool enableEmbeds;
+assert builtins.isBool enablePush;
 buildNpmPackage {
   pname = "cinny";
   version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
@@ -49,13 +51,14 @@ buildNpmPackage {
   };
 
   nodejs = nodejs_24;
-  npmDepsHash = "sha256-M3MqnfUfWwn5eSM6qmgKPtcbpYo8FbtxAmlFtpBTkJc=";
+  npmDepsHash = "sha256-Q9vHvd8Co08k/zZwn7Y5FkmqHmhIyKDU3fxDqRLR1YU=";
   npmRebuildFlags = [ "--ignore-scripts" ];
   npmBuildScript = "build";
   VITE_EMBED_BACKEND = lib.boolToString enableEmbeds;
+  VITE_PUSH_GATEWAY = lib.boolToString enablePush;
 
-  nativeBuildInputs = [ jq ] ++ lib.optionals enableEmbeds [ makeWrapper ];
-  passthru = { inherit enableEmbeds; };
+  nativeBuildInputs = [ jq ] ++ lib.optionals (enableEmbeds || enablePush) [ makeWrapper ];
+  passthru = { inherit enableEmbeds enablePush; };
 
   # The output is a static document root, not an npm package. Merge optional
   # deployment configuration after Vite copies config.json into dist.
@@ -82,13 +85,18 @@ buildNpmPackage {
       --add-flags "${backend}/src/main.js" \
       --set CINNY_CURL "${curl}/bin/curl"
   ''
+  + lib.optionalString enablePush ''
+    mkdir -p "$out/bin"
+    makeWrapper ${nodejs-slim_24}/bin/node "$out/bin/cinny-push" \
+      --add-flags "${backend}/src/push/main.js"
+  ''
   + ''
 
     runHook postInstall
   '';
 
   meta = {
-    description = "Cinny-based Matrix client with optional preview-only backend";
+    description = "Cinny-based Matrix client with optional preview backend and push gateway";
     homepage = "https://github.com/cinnyapp/cinny";
     license = lib.licenses.agpl3Only;
     platforms = lib.platforms.linux ++ lib.platforms.darwin;

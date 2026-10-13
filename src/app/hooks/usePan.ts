@@ -56,6 +56,7 @@ export const usePan = (active: boolean) => {
 
   return {
     pan,
+    setPan,
     cursor,
     onMouseDown: handleMouseDown,
   };

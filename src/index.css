@@ -38,9 +38,26 @@
   --font-secondary: 'InterVariable', var(--font-emoji), sans-serif;
 }
 
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+/* The keyboard covers the home indicator, so don't reserve space for it. */
+html[data-keyboard-open] {
+  --sab: 0px;
+}
+
 html {
   height: 100%;
   overflow: hidden;
+}
+
+html,
+body {
+  /* No pull-to-refresh (it reloads the client) or rubber-banding. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -56,9 +73,11 @@ body {
 }
 #root {
   width: 100%;
-  height: 100%;
+  /* --app-height follows the visual viewport (on-screen keyboard), see useVisualViewport. */
+  height: var(--app-height, 100%);
   display: flex;
   flex-direction: column;
+  padding: var(--sat) var(--sar) var(--sab) var(--sal);
 }
 
 *,

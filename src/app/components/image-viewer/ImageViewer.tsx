@@ -6,8 +6,10 @@ import { Box, Chip, Header, Icon, IconButton, Icons, Text, as } from 'folds';
 import * as css from './ImageViewer.css';
 import { useZoom } from '../../hooks/useZoom';
 import { usePan } from '../../hooks/usePan';
+import { useTouchZoom } from '../../hooks/useTouchZoom';
 import { downloadMedia } from '../../utils/matrix';
 import { copyToClipboard } from '../../utils/dom';
+import { useBackButtonClose } from '../../hooks/useBackButtonClose';
 
 export type ImageViewerProps = {
   alt: string;
@@ -18,8 +20,10 @@ export type ImageViewerProps = {
 
 export const ImageViewer = as<'div', ImageViewerProps>(
   ({ className, alt, src, mxcUri, requestClose, ...props }, ref) => {
+    useBackButtonClose(true, requestClose);
     const { zoom, zoomIn, zoomOut, setZoom } = useZoom(0.2);
-    const { pan, cursor, onMouseDown } = usePan(zoom !== 1);
+    const { pan, setPan, cursor, onMouseDown } = usePan(zoom !== 1);
+    const touchZoomHandlers = useTouchZoom({ zoom, setZoom, setPan });
 
     const handleDownload = async () => {
       const fileContent = await downloadMedia(src);
@@ -91,6 +95,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
           className={css.ImageViewerContent}
           justifyContent="Center"
           alignItems="Center"
+          {...touchZoomHandlers}
         >
           <img
             className={css.ImageViewerImg}

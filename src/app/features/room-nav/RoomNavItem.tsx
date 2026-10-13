@@ -62,6 +62,8 @@ import { livekitSupport } from '../../hooks/useLivekitSupport';
 import { StateEvent } from '../../../types/matrix/room';
 import { webRTCSupported } from '../../utils/rtc';
 import { RoomFavouriteMenuItem } from './RoomFavouriteMenuItem';
+import { useLongPress } from '../../hooks/useLongPress';
+import * as css from './styles.css';
 
 type RoomNavItemMenuProps = {
   room: Room;
@@ -278,6 +280,12 @@ export function RoomNavItem({
     });
   };
 
+  // The whole item is a link, so don't skip presses on interactive children.
+  const longPressHandlers = useLongPress(
+    ({ x, y }) => setMenuAnchor({ x, y, width: 0, height: 0 }),
+    { ignoreInteractive: false }
+  );
+
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     setMenuAnchor(evt.currentTarget.getBoundingClientRect());
   };
@@ -325,6 +333,8 @@ export function RoomNavItem({
       aria-selected={selected}
       data-hover={!!menuAnchor}
       onContextMenu={handleContextMenu}
+      {...longPressHandlers}
+      className={css.LongPressTarget}
       {...hoverProps}
       {...focusWithinProps}
     >
