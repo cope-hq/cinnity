@@ -19,6 +19,7 @@ import {
 } from 'matrix-js-sdk';
 import { CryptoBackend } from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 import { AccountDataEvent } from '../../types/matrix/accountData';
+import { getLocalNickname } from '../state/localNicknames';
 import {
   IRoomCreateContent,
   Membership,
@@ -359,12 +360,17 @@ export const parseReplyFormattedBody = (
   return `<mx-reply><blockquote>${replyToLink}${userLink}<br />${formattedBody}</blockquote></mx-reply>`;
 };
 
-export const getMemberDisplayName = (room: Room, userId: string): string | undefined => {
+/** Server-side name only. Use for anything that ends up in sent content. */
+export const getMemberServerDisplayName = (room: Room, userId: string): string | undefined => {
   const member = room.getMember(userId);
   const name = member?.rawDisplayName;
   if (name === userId) return undefined;
   return name;
 };
+
+/** Name to show in the UI: a client-side nickname if set, else the server-side name. */
+export const getMemberDisplayName = (room: Room, userId: string): string | undefined =>
+  getLocalNickname(userId) ?? getMemberServerDisplayName(room, userId);
 
 export const getMemberSearchStr = (
   member: RoomMember,

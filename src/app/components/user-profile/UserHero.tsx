@@ -94,9 +94,11 @@ export function UserHero({ userId, avatarUrl, presence }: UserHeroProps) {
 
 type UserHeroNameProps = {
   displayName?: string;
+  /** Server-side name, shown dimmed after `displayName` when it is a client-side nickname. */
+  serverName?: string;
   userId: string;
 };
-export function UserHeroName({ displayName, userId }: UserHeroNameProps) {
+export function UserHeroName({ displayName, serverName, userId }: UserHeroNameProps) {
   const username = getMxIdLocalPart(userId);
 
   return (
@@ -108,6 +110,11 @@ export function UserHeroName({ displayName, userId }: UserHeroNameProps) {
           title={displayName ?? username}
         >
           {displayName ?? username ?? userId}
+          {serverName && (
+            <Text as="span" size="T400" priority="300">
+              {` (${serverName})`}
+            </Text>
+          )}
         </Text>
       </Box>
       <Box alignItems="Center" gap="100" wrap="Wrap">

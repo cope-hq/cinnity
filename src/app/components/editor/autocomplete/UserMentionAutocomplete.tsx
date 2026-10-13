@@ -16,7 +16,7 @@ import { onTabPress } from '../../../utils/keyboard';
 import { createMentionElement, moveCursor, replaceWithElement } from '../utils';
 import { useKeyDown } from '../../../hooks/useKeyDown';
 import { getMxIdLocalPart, getMxIdServer, isUserId } from '../../../utils/matrix';
-import { getMemberDisplayName, getMemberSearchStr } from '../../../utils/room';
+import { getMemberServerDisplayName, getMemberSearchStr } from '../../../utils/room';
 import { UserAvatar } from '../../user-avatar';
 import { useMediaAuthentication } from '../../../hooks/useMediaAuthentication';
 import { Membership } from '../../../../types/matrix/room';
@@ -133,8 +133,11 @@ export function UserMentionAutocomplete({
     });
   });
 
+  // Mention pills are sent to others, so never use client-side nicknames here.
   const getName = (member: RoomMember) =>
-    getMemberDisplayName(room, member.userId) ?? getMxIdLocalPart(member.userId) ?? member.userId;
+    getMemberServerDisplayName(room, member.userId) ??
+    getMxIdLocalPart(member.userId) ??
+    member.userId;
 
   return (
     <AutocompleteMenu headerContent={<Text size="L400">Mentions</Text>} requestClose={requestClose}>

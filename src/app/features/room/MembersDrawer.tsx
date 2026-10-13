@@ -59,6 +59,7 @@ import { useSpaceOptionally } from '../../hooks/useSpace';
 import { ContainerColor } from '../../styles/ContainerColor.css';
 import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '../../hooks/useMemberPowerTag';
 import { useRoomCreators } from '../../hooks/useRoomCreators';
+import { useLocalNicknames } from '../../state/localNicknames';
 
 type MemberDrawerHeaderProps = {
   room: Room;
@@ -178,6 +179,8 @@ type MembersDrawerProps = {
 };
 export function MembersDrawer({ room, members }: MembersDrawerProps) {
   const mx = useMatrixClient();
+  // Re-render names when client-side nicknames change.
+  useLocalNicknames();
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);

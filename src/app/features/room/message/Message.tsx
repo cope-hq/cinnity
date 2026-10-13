@@ -74,6 +74,7 @@ import { MemberPowerTag, StateEvent } from '../../../../types/matrix/room';
 import { PowerIcon } from '../../../components/power';
 import colorMXID from '../../../../util/colorMXID';
 import { getPowerTagIconSrc } from '../../../hooks/useMemberPowerTag';
+import { useLocalNicknames } from '../../../state/localNicknames';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -750,6 +751,8 @@ export const Message = as<'div', MessageProps>(
     ref
   ) => {
     const mx = useMatrixClient();
+    // Re-render names when client-side nicknames change.
+    useLocalNicknames();
     const useAuthentication = useMediaAuthentication();
     const senderId = mEvent.getSender() ?? '';
     const messageMxcUri = getMessageMxcUri(mEvent);

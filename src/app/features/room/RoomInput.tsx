@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { useAtom, useAtomValue, useStore } from 'jotai';
 import { isKeyHotkey } from 'is-hotkey';
-import { EventType, IContent, MsgType, RelationType, Room } from 'matrix-js-sdk';
+import { EventType, IContent, MatrixClient, MsgType, RelationType, Room } from 'matrix-js-sdk';
 import { ReactEditor } from 'slate-react';
 import { Transforms, Editor } from 'slate';
 import {
@@ -68,6 +68,7 @@ import { useFilePicker } from '../../hooks/useFilePicker';
 import { useFilePasteHandler } from '../../hooks/useFilePasteHandler';
 import { useFileDropZone } from '../../hooks/useFileDrop';
 import {
+  IReplyDraft,
   TUploadItem,
   TUploadMetadata,
   roomIdToMsgDraftAtomFamily,
@@ -117,6 +118,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
 import { useComposingCheck } from '../../hooks/useComposingCheck';
+import { useLocalNicknames } from '../../state/localNicknames';
 
 interface RoomInputProps {
   editor: Editor;
@@ -124,9 +126,41 @@ interface RoomInputProps {
   roomId: string;
   room: Room;
 }
+
+const isThreadDraft = (draft: IReplyDraft): boolean =>
+  draft.relation?.rel_type === RelationType.Thread;
+
+/**
+ * Relation (and reply mention) for a message sent with a reply draft.
+ * `fallback` marks a thread message that isn't itself the reply, so it lands
+ * in the thread without quoting the replied-to event.
+ */
+const getReplyContent = (mx: MatrixClient, draft: IReplyDraft, fallback: boolean): IContent => {
+  const relatesTo: IContent = {
+    'm.in_reply_to': {
+      event_id: draft.eventId,
+    },
+  };
+  if (isThreadDraft(draft)) {
+    relatesTo.event_id = draft.relation?.event_id;
+    relatesTo.rel_type = RelationType.Thread;
+    relatesTo.is_falling_back = fallback;
+  }
+  const content: IContent = { 'm.relates_to': relatesTo };
+  if (!fallback) {
+    content['m.mentions'] = getMentionContent(
+      draft.userId !== mx.getUserId() ? [draft.userId] : [],
+      false
+    );
+  }
+  return content;
+};
+
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   ({ editor, fileDropContainerRef, roomId, room }, ref) => {
     const mx = useMatrixClient();
+    // Re-render names when client-side nicknames change.
+    useLocalNicknames();
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [isMarkdown] = useSetting(settingsAtom, 'isMarkdown');
@@ -276,7 +310,23 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       handleRemoveUpload(uploads.map((upload) => upload.file));
     };
 
-    const handleSendUpload = async (uploads: UploadSuccess[]) => {
+    /**
+     * `caption` is the composed text message; when given, it becomes the first
+     * upload's caption (Matrix v1.10 media captions: `body` is the caption,
+     * `filename` the file name) and already carries the reply relation.
+     */
+    const handleSendUpload = async (uploads: UploadSuccess[], caption?: IContent) => {
+      // Read the reply draft before any await: `submit` clears it right after
+      // sending. Without a caption, the reply rides on the first upload unless
+      // there is unsent text in the editor that will carry it later.
+      const uploadReplyDraft = store.get(roomIdToReplyDraftAtomFamily(roomId));
+      const uploadsTakeReply =
+        !!uploadReplyDraft &&
+        !caption &&
+        uploads.length > 0 &&
+        toPlainText(editor.children, isMarkdown).trim() === '';
+      if (uploadsTakeReply) setReplyDraft(undefined);
+
       const contentsPromises = uploads.map(async (upload) => {
         const fileItem = selectedFiles.find((f) => f.file === upload.file);
         if (!fileItem) throw new Error('Broken upload');
@@ -294,12 +344,24 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
       handleCancelUpload(uploads);
       const contents = fulfilledPromiseSettledResult(await Promise.allSettled(contentsPromises));
-      contents.forEach((content) => mx.sendMessage(roomId, content as any));
+      // Don't silently drop the text if every upload failed to prepare.
+      if (caption && contents.length === 0) mx.sendMessage(roomId, caption as any);
+      contents.forEach((content, index) => {
+        if (caption && index === 0) {
+          // Keep the upload's own msgtype; take everything else from the text.
+          Object.assign(content, caption, { msgtype: content.msgtype });
+          mx.sendMessage(roomId, content as any);
+          return;
+        }
+        const replyHere = uploadsTakeReply && index === 0;
+        if (uploadReplyDraft && (replyHere || isThreadDraft(uploadReplyDraft))) {
+          Object.assign(content, getReplyContent(mx, uploadReplyDraft, !replyHere));
+        }
+        mx.sendMessage(roomId, content as any);
+      });
     };
 
     const submit = useCallback(() => {
-      uploadBoardHandlers.current?.handleSend();
-
       const commandName = getBeginCommand(editor);
       let plainText = toPlainText(editor.children, isMarkdown).trim();
       const plainFormatting = commandName === Command.Plain ? false : isMarkdown;
@@ -333,6 +395,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         // /plain bypasses rich formatting: customHtml was already generated
         // without text formatting or markdown, so it stays plain-equivalent.
       } else if (commandName) {
+        uploadBoardHandlers.current?.handleSend();
         const commandContent = commands[commandName as Command];
         if (commandContent) {
           commandContent.exe(plainText);
@@ -343,7 +406,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return;
       }
 
-      if (plainText === '') return;
+      if (plainText === '') {
+        uploadBoardHandlers.current?.handleSend();
+        return;
+      }
 
       const body = plainText;
       const formattedBody = customHtml;
@@ -370,18 +436,16 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         content.formatted_body = formattedBody;
       }
       if (liveReplyDraft) {
-        content['m.relates_to'] = {
-          'm.in_reply_to': {
-            event_id: liveReplyDraft.eventId,
-          },
-        };
-        if (liveReplyDraft.relation?.rel_type === RelationType.Thread) {
-          content['m.relates_to'].event_id = liveReplyDraft.relation.event_id;
-          content['m.relates_to'].rel_type = RelationType.Thread;
-          content['m.relates_to'].is_falling_back = false;
-        }
+        content['m.relates_to'] = getReplyContent(mx, liveReplyDraft, false)['m.relates_to'];
       }
-      mx.sendMessage(roomId, content as any);
+      // Plain text sent together with finished uploads becomes their caption
+      // instead of a separate message.
+      const sentAsCaption =
+        msgType === MsgType.Text && !!uploadBoardHandlers.current?.handleSend(content);
+      if (!sentAsCaption) {
+        if (msgType !== MsgType.Text) uploadBoardHandlers.current?.handleSend();
+        mx.sendMessage(roomId, content as any);
+      }
       resetEditor(editor);
       resetEditorHistory(editor);
       setReplyDraft(undefined);

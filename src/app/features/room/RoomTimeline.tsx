@@ -79,6 +79,7 @@ import {
   getEventReactions,
   getLatestEditableEvt,
   getMemberDisplayName,
+  getMemberServerDisplayName,
   getReactionContent,
   isMembershipChanged,
   reactionOrEditEvent,
@@ -126,6 +127,7 @@ import { useAccessiblePowerTagColors, useGetMemberPowerTag } from '../../hooks/u
 import { useTheme } from '../../hooks/useTheme';
 import { useRoomCreatorsTag } from '../../hooks/useRoomCreatorsTag';
 import { usePowerLevelTags } from '../../hooks/usePowerLevelTags';
+import { useLocalNicknames } from '../../state/localNicknames';
 
 const TimelineFloat = as<'div', css.TimelineFloatVariants>(
   ({ position, className, ...props }, ref) => (
@@ -432,6 +434,8 @@ const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
 
 export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimelineProps) {
   const mx = useMatrixClient();
+  // Re-render names when client-side nicknames change.
+  useLocalNicknames();
   const useAuthentication = useMediaAuthentication();
   const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
@@ -937,7 +941,8 @@ export function RoomTimeline({ room, eventId, roomInputRef, editor }: RoomTimeli
         console.warn('Button should have "data-user-id" attribute!');
         return;
       }
-      const name = getMemberDisplayName(room, userId) ?? getMxIdLocalPart(userId) ?? userId;
+      // The mention text is sent, so use the server-side name, not a local nickname.
+      const name = getMemberServerDisplayName(room, userId) ?? getMxIdLocalPart(userId) ?? userId;
       editor.insertNode(
         createMentionElement(
           userId,

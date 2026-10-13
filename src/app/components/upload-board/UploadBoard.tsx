@@ -2,6 +2,7 @@ import React, { MutableRefObject, ReactNode, useImperativeHandle, useRef } from 
 import { Badge, Box, Chip, Header, Icon, Icons, Spinner, Text, as, percent } from 'folds';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
+import { IContent } from 'matrix-js-sdk';
 
 import * as css from './UploadBoard.css';
 import { TUploadFamilyObserverAtom, Upload, UploadStatus, UploadSuccess } from '../../state/upload';
@@ -24,14 +25,20 @@ export const UploadBoard = as<'div', UploadBoardProps>(({ header, children, ...p
   </Box>
 ));
 
-export type UploadBoardImperativeHandlers = { handleSend: () => Promise<void> };
+export type UploadBoardImperativeHandlers = {
+  /**
+   * Sends the finished uploads. Returns whether anything is being sent, so the
+   * caller knows if `caption` was consumed.
+   */
+  handleSend: (caption?: IContent) => boolean;
+};
 
 type UploadBoardHeaderProps = {
   open: boolean;
   onToggle: () => void;
   uploadFamilyObserverAtom: TUploadFamilyObserverAtom;
   onCancel: (uploads: Upload[]) => void;
-  onSend: (uploads: UploadSuccess[]) => Promise<void>;
+  onSend: (uploads: UploadSuccess[], caption?: IContent) => Promise<void>;
   imperativeHandlerRef: MutableRefObject<UploadBoardImperativeHandlers | undefined>;
 };
 
@@ -62,13 +69,17 @@ export function UploadBoardHeader({
     { loaded: 0, total: 0 }
   );
 
-  const handleSend = async () => {
-    if (sendingRef.current) return;
+  const handleSend = (caption?: IContent): boolean => {
+    if (sendingRef.current) return false;
+    const ready = uploads.filter(
+      (upload) => upload.status === UploadStatus.Success
+    ) as UploadSuccess[];
+    if (ready.length === 0) return false;
     sendingRef.current = true;
-    await onSend(
-      uploads.filter((upload) => upload.status === UploadStatus.Success) as UploadSuccess[]
-    );
-    sendingRef.current = false;
+    onSend(ready, caption).finally(() => {
+      sendingRef.current = false;
+    });
+    return true;
   };
 
   useImperativeHandle(imperativeHandlerRef, () => ({
@@ -94,7 +105,7 @@ export function UploadBoardHeader({
         {isSuccess && (
           <Chip
             as="button"
-            onClick={handleSend}
+            onClick={() => handleSend()}
             variant="Primary"
             radii="Pill"
             outlined

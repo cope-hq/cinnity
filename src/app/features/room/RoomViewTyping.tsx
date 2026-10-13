@@ -10,6 +10,7 @@ import { getMxIdLocalPart } from '../../utils/matrix';
 import * as css from './RoomViewTyping.css';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useRoomTypingMember } from '../../hooks/useRoomTypingMembers';
+import { useLocalNicknames } from '../../state/localNicknames';
 
 export type RoomViewTypingProps = {
   room: Room;
@@ -18,6 +19,8 @@ export const RoomViewTyping = as<'div', RoomViewTypingProps>(
   ({ className, room, ...props }, ref) => {
     const setTypingMembers = useSetAtom(roomIdToTypingMembersAtom);
     const mx = useMatrixClient();
+    // Re-render names when client-side nicknames change.
+    useLocalNicknames();
     const typingMembers = useRoomTypingMember(room.roomId);
 
     const typingNames = typingMembers

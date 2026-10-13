@@ -6,6 +6,7 @@ import { SequenceCardStyle } from '../styles.css';
 import { SettingTile } from '../../../components/setting-tile';
 import { useSetting } from '../../../state/hooks/settings';
 import { settingsAtom } from '../../../state/settings';
+import { setLocalNicknamesEnabled, useLocalNicknames } from '../../../state/localNicknames';
 
 type TweaksProps = {
   requestClose: () => void;
@@ -14,6 +15,7 @@ type TweaksProps = {
 export function Tweaks({ requestClose }: TweaksProps) {
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+  const { enabled: localNicknames } = useLocalNicknames();
 
   return (
     <Page>
@@ -34,37 +36,59 @@ export function Tweaks({ requestClose }: TweaksProps) {
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
-            <Box direction="Column" gap="100">
-              <Text size="L400">Link Embeds</Text>
-              <SequenceCard
-                className={SequenceCardStyle}
-                variant="SurfaceVariant"
-                direction="Column"
-              >
-                <SettingTile
-                  title="Enable Link Embeds"
-                  description="Automatically show previews for links in messages."
-                  after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
-                />
-              </SequenceCard>
-              <SequenceCard
-                className={SequenceCardStyle}
-                variant="SurfaceVariant"
-                direction="Column"
-              >
-                <SettingTile
-                  title="Enable in Encrypted Rooms"
-                  description="Automatically fetch link embeds from encrypted messages."
-                  after={
-                    <Switch
-                      variant="Primary"
-                      value={encUrlPreview}
-                      onChange={setEncUrlPreview}
-                      disabled={!urlPreview}
-                    />
-                  }
-                />
-              </SequenceCard>
+            <Box direction="Column" gap="700">
+              <Box direction="Column" gap="100">
+                <Text size="L400">Link Embeds</Text>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                >
+                  <SettingTile
+                    title="Enable Link Embeds"
+                    description="Automatically show previews for links in messages."
+                    after={<Switch variant="Primary" value={urlPreview} onChange={setUrlPreview} />}
+                  />
+                </SequenceCard>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                >
+                  <SettingTile
+                    title="Enable in Encrypted Rooms"
+                    description="Automatically fetch link embeds from encrypted messages."
+                    after={
+                      <Switch
+                        variant="Primary"
+                        value={encUrlPreview}
+                        onChange={setEncUrlPreview}
+                        disabled={!urlPreview}
+                      />
+                    }
+                  />
+                </SequenceCard>
+              </Box>
+              <Box direction="Column" gap="100">
+                <Text size="L400">People</Text>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                >
+                  <SettingTile
+                    title="Local Nicknames"
+                    description="Rename people on this device only. Set a nickname from their profile card. Nicknames are never sent to the server or other people."
+                    after={
+                      <Switch
+                        variant="Primary"
+                        value={localNicknames}
+                        onChange={setLocalNicknamesEnabled}
+                      />
+                    }
+                  />
+                </SequenceCard>
+              </Box>
             </Box>
           </PageContent>
         </Scroll>
