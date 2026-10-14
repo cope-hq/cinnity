@@ -64,7 +64,11 @@ const containerSet = (base: string, fg: string) => ({
 
 const accentSet = (accent: string, p: TerminalPalette) => {
   const dark = p.kind === 'dark';
-  const container = mix(p.surface, accent, dark ? 0.22 : 0.18);
+  // Accent containers mark "on"/selected states (e.g. your own reactions), so
+  // they need to stand apart from the already-tinted surfaces of these
+  // palettes: a stronger tint over the darkest background plus a full-accent
+  // outline.
+  const container = mix(p.background, accent, dark ? 0.3 : 0.24);
   return {
     Main: accent,
     MainHover: mix(accent, p.background, 0.08),
@@ -72,10 +76,10 @@ const accentSet = (accent: string, p: TerminalPalette) => {
     MainLine: mix(accent, p.background, 0.16),
     OnMain: dark ? p.background : p.surface,
     Container: container,
-    ContainerHover: mix(container, accent, 0.06),
-    ContainerActive: mix(container, accent, 0.12),
-    ContainerLine: mix(container, accent, 0.18),
-    OnContainer: mix(accent, p.foreground, dark ? 0.5 : 0.4),
+    ContainerHover: mix(container, accent, 0.08),
+    ContainerActive: mix(container, accent, 0.14),
+    ContainerLine: accent,
+    OnContainer: mix(accent, p.foreground, dark ? 0.35 : 0.55),
   };
 };
 

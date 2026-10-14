@@ -184,6 +184,18 @@ type RenderImageContentProps = {
   markedAsSpoiler?: boolean;
   spoilerReason?: string;
 };
+/**
+ * Size image/video boxes by aspect ratio rather than a height computed for the
+ * full 400px width: on narrow (mobile) screens the box is narrower, and a fixed
+ * height made `object-fit: cover` crop the sides off.
+ */
+const getMediaBoxStyle = (w?: number, h?: number): CSSProperties => {
+  if (!w || !h || w <= 0 || h <= 0) {
+    return { height: toRem(scaleYDimension(400, 400, 400)) };
+  }
+  return { aspectRatio: `${w} / ${h}`, minHeight: toRem(48) };
+};
+
 type MImageProps = {
   content: IImageContent;
   renderImageContent: (props: RenderImageContentProps) => ReactNode;
@@ -195,15 +207,9 @@ export function MImage({ content, renderImageContent, outlined }: MImageProps) {
   if (typeof mxcUrl !== 'string') {
     return <BrokenContent />;
   }
-  const height = scaleYDimension(imgInfo?.w || 400, 400, imgInfo?.h || 400);
-
   return (
     <Attachment outlined={outlined}>
-      <AttachmentBox
-        style={{
-          height: toRem(height < 48 ? 48 : height),
-        }}
-      >
+      <AttachmentBox style={getMediaBoxStyle(imgInfo?.w, imgInfo?.h)}>
         {renderImageContent({
           body: content.body || 'Image',
           info: imgInfo,
@@ -245,8 +251,6 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
     return <BrokenContent />;
   }
 
-  const height = scaleYDimension(videoInfo.w || 400, 400, videoInfo.h || 400);
-
   const filename = content.filename ?? content.body ?? 'Video';
 
   return (
@@ -265,11 +269,7 @@ export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: 
           }
         />
       </AttachmentHeader>
-      <AttachmentBox
-        style={{
-          height: toRem(height < 48 ? 48 : height),
-        }}
-      >
+      <AttachmentBox style={getMediaBoxStyle(videoInfo.w, videoInfo.h)}>
         {renderVideoContent({
           body: content.body || 'Video',
           info: videoInfo,
