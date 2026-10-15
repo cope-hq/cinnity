@@ -114,6 +114,10 @@ export const getVideoMsgContent = async (
       ...getVideoInfo(videoEl, file),
       ...thumbContent,
     };
+  } else {
+    // This browser couldn't decode the video (e.g. HEVC), but others may: keep
+    // it a video message instead of letting receivers fall back to a file.
+    content.info = { mimetype: file.type, size: file.size };
   }
   if (encInfo) {
     content.file = {

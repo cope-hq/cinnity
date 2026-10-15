@@ -7,7 +7,13 @@ export const IMAGE_MIME_TYPES = [
   'image/avif',
 ];
 
-export const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+export const VIDEO_MIME_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime',
+  'video/x-matroska',
+];
 
 export const AUDIO_MIME_TYPES = [
   'audio/mp4',
@@ -116,6 +122,10 @@ export const getBlobSafeMimeType = (mimeType: string) => {
   if (type === 'video/quicktime') {
     return 'video/mp4';
   }
+  // WebM is a Matroska subset; browsers only play Matroska labelled as WebM.
+  if (type === 'video/x-matroska') {
+    return 'video/webm';
+  }
   // Fixes missing playback for Ogg audio
   if (type === 'application/ogg') {
     return 'audio/ogg';
@@ -123,8 +133,22 @@ export const getBlobSafeMimeType = (mimeType: string) => {
   return type;
 };
 
+// Some platforms (notably mobile browsers) report an empty type for media.
+const MEDIA_EXT_TO_MIME_TYPE: Record<string, string> = {
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  mkv: 'video/x-matroska',
+  ogv: 'video/ogg',
+};
+
+/** MIME type from the file name, for files/events that don't carry one. */
+export const guessMediaMimeType = (fileName: string): string | undefined =>
+  MEDIA_EXT_TO_MIME_TYPE[fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase()];
+
 export const safeFile = (f: File) => {
-  const safeType = getBlobSafeMimeType(f.type);
+  const safeType = getBlobSafeMimeType(f.type || guessMediaMimeType(f.name) || '');
   if (safeType !== f.type) {
     return new File([f], f.name, { type: safeType });
   }

@@ -56,6 +56,7 @@ import { getMxIdLocalPart, mxcUrlToHttp } from '../../../utils/matrix';
 import { MessageLayout, MessageSpacing } from '../../../state/settings';
 import { useMatrixClient } from '../../../hooks/useMatrixClient';
 import { useLongPress } from '../../../hooks/useLongPress';
+import { getFailedPreviewUrls, retryPreviews } from '../../../utils/previewRetry';
 import { useRecentEmoji } from '../../../hooks/useRecentEmoji';
 import * as css from './styles.css';
 import { EventReaders } from '../../../components/event-readers';
@@ -762,6 +763,10 @@ export const Message = as<'div', MessageProps>(
     const { hoverProps } = useHover({ onHoverChange: setHover });
     const { focusWithinProps } = useFocusWithin({ onFocusWithinChange: setHover });
     const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+    // Link previews in this message that failed to load (see UrlPreviewCard).
+    const failedPreviewUrls = menuAnchor
+      ? getFailedPreviewUrls(String(mEvent.getContent().body ?? ''))
+      : [];
     const [emojiBoardAnchor, setEmojiBoardAnchor] = useState<RectCords>();
 
     const senderDisplayName =
@@ -1125,6 +1130,26 @@ export const Message = as<'div', MessageProps>(
                             />
                           )}
                           <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={closeMenu} />
+                          {failedPreviewUrls.length > 0 && (
+                            <MenuItem
+                              size="300"
+                              after={<Icon size="100" src={Icons.Reload} />}
+                              radii="300"
+                              onClick={() => {
+                                retryPreviews(failedPreviewUrls);
+                                closeMenu();
+                              }}
+                            >
+                              <Text
+                                className={css.MessageMenuItemText}
+                                as="span"
+                                size="T300"
+                                truncate
+                              >
+                                Retry Link Preview
+                              </Text>
+                            </MenuItem>
+                          )}
                           {messageMxcUri && (
                             <MessageCopyMxcItem mxcUri={messageMxcUri} onClose={closeMenu} />
                           )}

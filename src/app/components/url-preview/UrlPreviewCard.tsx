@@ -37,6 +37,7 @@ import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { ImageViewer } from '../image-viewer';
 import { useObjectURL } from '../../hooks/useObjectURL';
 import { useLongPress } from '../../hooks/useLongPress';
+import { onPreviewRetry, setPreviewFailed } from '../../utils/previewRetry';
 import { onEnterOrSpace, stopPropagation } from '../../utils/keyboard';
 
 // cinny-old port: cap previews per message (LINK_PREVIEWS.md allowed two
@@ -339,6 +340,20 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number }>(
       loadPreview().catch(() => undefined);
     }, [loadPreview]);
 
+    // A failed preview renders nothing; the message menu offers the retry.
+    const previewFailed = previewStatus.status === AsyncStatus.Error;
+    useEffect(() => {
+      setPreviewFailed(url, previewFailed);
+      return () => setPreviewFailed(url, false);
+    }, [url, previewFailed]);
+    useEffect(
+      () =>
+        onPreviewRetry(url, () => {
+          loadPreview().catch(() => undefined);
+        }),
+      [url, loadPreview]
+    );
+
     // Embed (preview backend) state. Kept across preview reloads so a video the
     // user started keeps playing with the fresh media capabilities.
     const [videoRequested, setVideoRequested] = useState(false);
@@ -378,20 +393,7 @@ export const UrlPreviewCard = as<'div', { url: string; ts: number }>(
       },
     };
 
-    if (previewStatus.status === AsyncStatus.Error) {
-      return (
-        <Button
-          className={previewCss.UrlPreviewConsent}
-          size="300"
-          variant="Secondary"
-          onClick={() => loadPreview().catch(() => undefined)}
-        >
-          <Text as="span" size="B300">
-            Retry preview
-          </Text>
-        </Button>
-      );
-    }
+    if (previewFailed) return null;
 
     // Keep showing the last embed while it reloads (e.g. for fresh media).
     const showEmbed =

@@ -22,8 +22,8 @@ test('positive OG adapter fixture: normalized rich text and inert discovery', as
       color: '#abc',
     },
     candidates: [
-      { kind: 'image', url: '/cover.png' },
       { kind: 'video', url: 'https://cdn.example/clip.mp4' },
+      { kind: 'image', url: '/cover.png' },
     ],
   };
   assert.deepEqual(metadata(fixture), expected);
@@ -137,4 +137,15 @@ test('M4A capability is audio-only, matching the browser contract', () => {
   bytes.write('M4A ', 8);
   assert.equal(sniff(bytes, 'audio'), 'audio/mp4');
   assert.equal(sniff(bytes, 'video'), null);
+});
+
+test('player cards expose their raw video stream before the thumbnail', () => {
+  const { candidates } = metadata(`
+    <meta property="og:image" content="https://cdn.example/thumb.jpg">
+    <meta name="twitter:card" content="player">
+    <meta name="twitter:player:stream" content="https://cdn.example/clip.mp4">`);
+  assert.deepEqual(candidates, [
+    { kind: 'video', url: 'https://cdn.example/clip.mp4' },
+    { kind: 'image', url: 'https://cdn.example/thumb.jpg' },
+  ]);
 });

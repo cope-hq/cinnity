@@ -25,7 +25,7 @@ import {
   MATRIX_SPOILER_PROPERTY_NAME,
   MATRIX_SPOILER_REASON_PROPERTY_NAME,
 } from '../../../types/matrix/common';
-import { FALLBACK_MIMETYPE, getBlobSafeMimeType } from '../../utils/mimeTypes';
+import { FALLBACK_MIMETYPE, getBlobSafeMimeType, guessMediaMimeType } from '../../utils/mimeTypes';
 import { parseGeoUri, scaleYDimension } from '../../utils/common';
 import { Attachment, AttachmentBox, AttachmentContent, AttachmentHeader } from './attachment';
 import { FileHeader, FileDownloadButton } from './FileHeader';
@@ -240,11 +240,14 @@ type MVideoProps = {
   outlined?: boolean;
 };
 export function MVideo({ content, renderAsFile, renderVideoContent, outlined }: MVideoProps) {
-  const videoInfo = content?.info;
+  // Other clients may omit `info` (or its mimetype) entirely; it's optional.
+  const videoInfo = content?.info ?? {};
   const mxcUrl = content.file?.url ?? content.url;
-  const safeMimeType = getBlobSafeMimeType(videoInfo?.mimetype ?? '');
+  const safeMimeType = getBlobSafeMimeType(
+    videoInfo.mimetype || guessMediaMimeType(content.filename ?? content.body ?? '') || ''
+  );
 
-  if (!videoInfo || !safeMimeType.startsWith('video') || typeof mxcUrl !== 'string') {
+  if (!safeMimeType.startsWith('video') || typeof mxcUrl !== 'string') {
     if (mxcUrl) {
       return renderAsFile();
     }

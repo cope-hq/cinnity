@@ -203,9 +203,10 @@ test('media candidates are deduplicated, limited and reject invalid/private URLs
     }),
   });
   const result = await (await post(base)).json();
+  // The video comes first (with an image as its poster); at most one playable item.
   assert.deepEqual(
     result.media.map((m) => m.kind),
-    ['image', 'image']
+    ['video', 'image']
   );
   const other = await start(t, {
     fetchResource: async (url) => ({

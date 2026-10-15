@@ -21,7 +21,8 @@ export function metadata(html) {
     .find((n) => n.tagName === 'html')
     ?.childNodes.find((n) => n.tagName === 'head');
   const values = new Map();
-  const mediaKey = /^(?:og:(?:image|video|audio)(?::(?:secure_url|url))?|twitter:image(?::src)?)$/;
+  const mediaKey =
+    /^(?:og:(?:image|video|audio)(?::(?:secure_url|url))?|twitter:image(?::src)?|twitter:player:stream)$/;
   let title = '';
   for (const node of head?.childNodes || []) {
     if (node.tagName === 'title' && !title)
@@ -57,12 +58,16 @@ export function metadata(html) {
   const color = pick('theme-color').trim();
   if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color)) result.color = color.toLowerCase();
   const candidates = [];
-  for (const kind of ['image', 'video', 'audio']) {
+  // Playable media first: when a page has a video, its og:image is just the
+  // video's thumbnail and serves as the poster.
+  for (const kind of ['video', 'audio', 'image']) {
     const urls = pickAll(
       `og:${kind}:secure_url`,
       `og:${kind}:url`,
       `og:${kind}`,
-      ...(kind === 'image' ? ['twitter:image', 'twitter:image:src'] : [])
+      ...(kind === 'image' ? ['twitter:image', 'twitter:image:src'] : []),
+      // Raw stream behind a `twitter:card` player (e.g. Twitter/X proxies).
+      ...(kind === 'video' ? ['twitter:player:stream'] : [])
     );
     for (const url of urls) {
       if (url.length <= 4096) candidates.push({ kind, url });

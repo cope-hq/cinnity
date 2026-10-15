@@ -110,6 +110,10 @@ export function createServer({
             const seen = new Set();
             for (const candidate of candidates) {
               try {
+                // At most one playable item (plus an image as its poster, or
+                // up to two images for galleries).
+                if (candidate.kind !== 'image' && refs.some((ref) => ref.kind !== 'image'))
+                  continue;
                 const url = referenceUrl(candidate.url, page.url).href;
                 if (seen.has(url)) continue;
                 seen.add(url);
