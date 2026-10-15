@@ -48,9 +48,12 @@ export interface Settings {
   dateFormatString: string;
 
   developerTools: boolean;
+
+  /** Sync settings and nicknames across devices via account data (per device). */
+  syncSettings: boolean;
 }
 
-const defaultSettings: Settings = {
+export const defaultSettings: Settings = {
   themeId: undefined,
   useSystemTheme: true,
   lightThemeId: undefined,
@@ -83,6 +86,8 @@ const defaultSettings: Settings = {
   dateFormatString: 'D MMM YYYY',
 
   developerTools: false,
+
+  syncSettings: true,
 };
 
 export const getSettings = () => {

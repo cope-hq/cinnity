@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Client-side nicknames for other users. Stored only in this browser's
- * localStorage and never sent to the homeserver.
+ * Client-side nicknames for other users. Stored in localStorage and synced
+ * across the user's devices via private account data (see SettingsSync); they
+ * are never shown to anyone else.
  *
  * This is a plain external store rather than a jotai atom because
  * `getMemberDisplayName` (a non-hook util used all over the app) has to read it.
@@ -10,7 +11,7 @@ import { useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'localNicknames';
 
-type LocalNicknamesState = {
+export type LocalNicknamesState = {
   enabled: boolean;
   nicknames: Record<string, string>;
 };
@@ -55,6 +56,25 @@ const subscribe = (listener: () => void) => {
 };
 
 const getState = () => state;
+
+export const getLocalNicknamesState = getState;
+
+const sanitize = (value: unknown): LocalNicknamesState | undefined => {
+  if (!value || typeof value !== 'object') return undefined;
+  const { enabled, nicknames } = value as Partial<LocalNicknamesState>;
+  if (typeof enabled !== 'boolean' || !nicknames || typeof nicknames !== 'object') return undefined;
+  const clean: Record<string, string> = {};
+  Object.entries(nicknames).forEach(([userId, nick]) => {
+    if (typeof nick === 'string' && nick.trim()) clean[userId] = nick.trim();
+  });
+  return { enabled, nicknames: clean };
+};
+
+/** Replace the whole state (e.g. from account data synced on another device). */
+export const replaceLocalNicknames = (value: unknown) => {
+  const next = sanitize(value);
+  if (next && JSON.stringify(next) !== JSON.stringify(state)) update(next);
+};
 
 export const getLocalNickname = (userId: string): string | undefined =>
   state.enabled ? state.nicknames[userId] : undefined;

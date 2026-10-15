@@ -16,6 +16,7 @@ export function Tweaks({ requestClose }: TweaksProps) {
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const { enabled: localNicknames } = useLocalNicknames();
+  const [syncSettings, setSyncSettings] = useSetting(settingsAtom, 'syncSettings');
 
   return (
     <Page>
@@ -70,6 +71,22 @@ export function Tweaks({ requestClose }: TweaksProps) {
                 </SequenceCard>
               </Box>
               <Box direction="Column" gap="100">
+                <Text size="L400">Sync</Text>
+                <SequenceCard
+                  className={SequenceCardStyle}
+                  variant="SurfaceVariant"
+                  direction="Column"
+                >
+                  <SettingTile
+                    title="Sync Across Devices"
+                    description="Keep settings and nicknames the same on every device signed in to this account (stored privately in your account data). Page zoom, the members panel and Enter-for-newline always stay per device. This switch only affects this device."
+                    after={
+                      <Switch variant="Primary" value={syncSettings} onChange={setSyncSettings} />
+                    }
+                  />
+                </SequenceCard>
+              </Box>
+              <Box direction="Column" gap="100">
                 <Text size="L400">People</Text>
                 <SequenceCard
                   className={SequenceCardStyle}
@@ -78,7 +95,7 @@ export function Tweaks({ requestClose }: TweaksProps) {
                 >
                   <SettingTile
                     title="Local Nicknames"
-                    description="Rename people on this device only. Set a nickname from their profile card. Nicknames are never sent to the server or other people."
+                    description="Rename people just for yourself. Set a nickname from their profile card. Only visible to you, never to anyone else."
                     after={
                       <Switch
                         variant="Primary"

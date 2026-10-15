@@ -31,6 +31,7 @@ import { webPushActiveAtom } from '../../state/webPush';
 import { fetchPushGatewayInfo, pushGatewayEnabled } from '../../utils/pushGateway';
 import { getWebPushRecord, syncWebPush, webPushSupported } from '../../utils/webPush';
 import { useRecordLocationHistory } from '../../utils/locationHistory';
+import { SettingsSync } from './SettingsSync';
 import {
   PUSH_SUBSCRIPTION_CHANGED_EVENT,
   subscribeOpenRoom,
@@ -362,6 +363,7 @@ export function ClientNonUIFeatures({ children }: ClientNonUIFeaturesProps) {
       <FaviconUpdater />
       <InviteNotifications />
       <MessageNotifications />
+      <SettingsSync />
       <LocationHistoryRecorder />
       <WebPushSync />
       <PushOpenRoomHandler />

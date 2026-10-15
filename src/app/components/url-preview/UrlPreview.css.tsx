@@ -155,3 +155,64 @@ export const UrlPreviewMediaAction = style([
     margin: `0 ${config.space.S200} ${config.space.S200}`,
   },
 ]);
+
+// Long-press opens the embed menu; keep iOS from showing its own callout.
+export const UrlPreviewTouch = style({
+  '@media': {
+    '(pointer: coarse)': {
+      WebkitTouchCallout: 'none',
+    },
+  },
+});
+
+export const UrlPreviewVideo = style([
+  DefaultReset,
+  {
+    position: 'relative',
+    width: `calc(100% - ${toRem(16)})`,
+    maxHeight: toRem(360),
+    margin: `0 ${config.space.S200} ${config.space.S200}`,
+    borderRadius: config.radii.R300,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+]);
+
+export const UrlPreviewVideoFill = style([
+  DefaultReset,
+  {
+    display: 'block',
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+  },
+]);
+
+export const UrlPreviewPlay = style([
+  DefaultReset,
+  {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: toRem(56),
+    height: toRem(56),
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    color: '#fff',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    cursor: 'pointer',
+
+    selectors: {
+      '&:hover:not(:disabled), &:focus-visible': {
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      },
+      '&:disabled': {
+        cursor: 'default',
+      },
+    },
+  },
+]);
